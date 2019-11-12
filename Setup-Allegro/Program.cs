@@ -8,6 +8,7 @@ using System.IO;
 using System.IO.Compression;
 using System.Xml.Linq;
 using System.Xml;
+using System.Diagnostics;
 
 namespace Setup_Allegro {
     class Program {
@@ -29,6 +30,10 @@ namespace Setup_Allegro {
         static void Main(string[] args) {
             client.DownloadProgressChanged += Client_DownloadProgressChanged;
 
+            checkArch();
+
+            killCodeblockProcess();
+
             downloadFiles(client, allegroUri, allegroPath);
             downloadFiles(client, compilerUri, compilerPath);
 
@@ -47,6 +52,37 @@ namespace Setup_Allegro {
 
             Console.WriteLine("Finish. Press any key to close.");
             Console.ReadLine();
+        }
+
+        private static void checkArch() {
+            bool is64bit = Environment.Is64BitOperatingSystem;
+            if (!is64bit) {
+                Console.WriteLine("Not 64 bit operating system.");
+                Console.WriteLine("Script stopped.");
+
+                Environment.Exit(1);
+            }
+        }
+
+        private static void killCodeblockProcess() {
+            Process[] codeclockProcess = Process.GetProcessesByName("codeblocks");
+            if (codeclockProcess.Length > 0) {
+                Console.WriteLine("Try to kill codeblocks");
+                try {
+                    foreach (var item in codeclockProcess) {
+                        item.Kill();
+                    }
+                } catch (Exception ex) {
+                    Console.WriteLine(ex);
+                }
+
+                Console.WriteLine("Please close all the codeblocks to continue.");
+                foreach (var item in codeclockProcess) {
+                    item.WaitForExit();
+                }
+            } else {
+                Console.WriteLine("No codeblocks running. Continue.");
+            }
         }
 
         private static string getCodeblocksDir() {
@@ -150,7 +186,7 @@ namespace Setup_Allegro {
                 Console.WriteLine("Delete old directory {0}", fullDest);
                 Directory.Delete(fullDest, true);
             }
-            
+
             if (Path.GetPathRoot(fullSrc) == Path.GetPathRoot(fullDest)) {
                 Console.WriteLine("Move {0} to {1}", fullSrc, fullDest);
                 Directory.Move(fullSrc, fullDest);
@@ -172,20 +208,41 @@ namespace Setup_Allegro {
         }
 
         private static void unzipFiles(string file, string path) {
-            string extractPath = Path.GetFullPath(path);
 
-            if (!extractPath.EndsWith(Path.DirectorySeparatorChar.ToString(), StringComparison.Ordinal))
+            DirectoryInfo di = Directory.CreateDirectory(path);
+            string extractPath = di.FullName;
+
+            if (!extractPath.EndsWith(Path.DirectorySeparatorChar.ToString(), StringComparison.Ordinal)) {
                 extractPath += Path.DirectorySeparatorChar;
-
+            }
             Console.WriteLine("Unzip {0} to {1}", file, extractPath);
 
-            ZipFile.ExtractToDirectory(file, extractPath);
+            using (ZipArchive archive = ZipFile.OpenRead(file)) {
+                for (int idx = 0; idx < archive.Entries.Count; ++idx) {
+                    ZipArchiveEntry entry = archive.Entries[idx];
 
+                    string fileDestPath = Path.GetFullPath(Path.Combine(extractPath, entry.FullName));
+
+                    if (fileDestPath.EndsWith(extractPath, StringComparison.Ordinal)) {
+                        continue;
+                    }
+
+                    if (Path.GetFileName(fileDestPath).Length == 0) {
+                        Directory.CreateDirectory(fileDestPath);
+                    } else {
+                        Directory.CreateDirectory(Path.GetDirectoryName(fileDestPath));
+                        entry.ExtractToFile(fileDestPath, true);
+                    }
+                    Console.Write("\rProgress: {0}/{1} files ({2}%)", idx, archive.Entries.Count, idx * 100 / archive.Entries.Count);
+                }
+            }
+
+            Console.WriteLine();
             Console.WriteLine("Unzip Done.");
         }
 
         private static void downloadFiles(WebClient client, string uri, string path) {
-            Console.WriteLine("Download {0} from {1}\n", path, uri);
+            Console.WriteLine("Download {0} from {1}", path, uri);
             if (!File.Exists(path + ".downloaded")) {
                 Task task = client.DownloadFileTaskAsync(uri, path);
                 currentFileName = path;
