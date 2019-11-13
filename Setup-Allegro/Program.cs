@@ -29,29 +29,92 @@ namespace Setup_Allegro {
 
         static void Main(string[] args) {
             client.DownloadProgressChanged += Client_DownloadProgressChanged;
+            showHelloMessage();
 
             checkArch();
 
+            showStopConflictProcessMessage();
             killCodeblockProcess();
 
+            showDownloadComponentMessage();
             downloadFiles(client, allegroUri, allegroPath);
             downloadFiles(client, compilerUri, compilerPath);
 
+            showUnpackMessage();
             unzipFiles(allegroPath, allegroUnzipPath);
             unzipFiles(compilerPath, compilerUnzipPath);
 
+            showInstallMessage();
             createParentDirectory(allegroDestPath);
             createParentDirectory(compilerDestPath);
 
             moveDirectory(allegroSrcPath, allegroDestPath);
             moveDirectory(compilerSrcPath, compilerDestPath);
 
+            showPatchCodeblocksMessage();
             copyCodeblocksConf();
             patchCodeblocks();
             copyBackCodeblocksConf();
 
-            Console.WriteLine("Finish. Press any key to close.");
+            showCleaningMessage();
+            cleaningFiles();
+
+            Console.WriteLine();
+            Console.WriteLine("- Done! Press any key to Close.");
             Console.ReadLine();
+        }
+
+        private static void showHelloMessage() {
+            Console.WriteLine("#################################");
+            Console.WriteLine("Setup Allegro for Codeblocks");
+            Console.WriteLine("script made by Jeff Zhang <e8035669@gmail.com>");
+            Console.WriteLine("source code is placed at http://140.127.205.188/e8035669/setup-allegro");
+            Console.WriteLine("#################################");
+        }
+
+        private static void showStopConflictProcessMessage() {
+            Console.WriteLine();
+            Console.WriteLine("- Checking conflict process...");
+        }
+
+        private static void showDownloadComponentMessage() {
+            Console.WriteLine();
+            Console.WriteLine("- Download needed components...");
+        }
+
+        private static void showUnpackMessage() {
+            Console.WriteLine();
+            Console.WriteLine("- Unpack components...");
+        }
+
+        private static void showInstallMessage() {
+            Console.WriteLine();
+            Console.WriteLine("- Installing...");
+        }
+
+        private static void showPatchCodeblocksMessage() {
+            Console.WriteLine();
+            Console.WriteLine("- Post patching...");
+        }
+
+        private static void showCleaningMessage() {
+            Console.WriteLine();
+            Console.WriteLine("- Cleaning...");
+        }
+
+        private static void cleaningFiles() {
+            Console.WriteLine("Delete {0}", allegroPath);
+            File.Delete(allegroPath);
+            Console.WriteLine("Delete {0}", allegroPath + ".downloaded");
+            File.Delete(allegroPath + ".downloaded");
+            Console.WriteLine("Delete {0}", compilerPath);
+            File.Delete(compilerPath);
+            Console.WriteLine("Delete {0}", compilerPath + ".downloaded");
+            File.Delete(compilerPath + ".downloaded");
+            Console.WriteLine("Delete {0}", @".\default.conf");
+            File.Delete(@".\default.conf");
+            Console.WriteLine("Delete {0}", @".\default.conf.new");
+            File.Delete(@".\default.conf.new");
         }
 
         private static void checkArch() {
@@ -233,7 +296,8 @@ namespace Setup_Allegro {
                         Directory.CreateDirectory(Path.GetDirectoryName(fileDestPath));
                         entry.ExtractToFile(fileDestPath, true);
                     }
-                    Console.Write("\rProgress: {0}/{1} files ({2}%)", idx, archive.Entries.Count, idx * 100 / archive.Entries.Count);
+                    Console.Write("\rProgress: {0}/{1} files ({2}%)",
+                        idx + 1, archive.Entries.Count, (idx + 1) * 100 / archive.Entries.Count);
                 }
             }
 
